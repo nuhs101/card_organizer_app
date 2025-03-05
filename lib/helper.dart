@@ -17,7 +17,7 @@ class DatabaseHelper {
   static const cardName = 'name';
   static const cardSuit = 'suit';
   static const cardImage = 'image_url';
-  static const cardFolderId = 'folder_id'
+  static const cardFolderId = 'folder_id';
   late Database _db;
   // this opens the database (and creates it if it doesn't exist)
   Future<void> init() async {
@@ -39,8 +39,8 @@ $folderName TEXT NOT NULL,
 $folderTimestamp INTEGER NOT NULL
 )
 ''');
-  await db.execute('''
-CREATE TABLE $folderTable (
+    await db.execute('''
+CREATE TABLE $cardTable (
 $cardId INTEGER PRIMARY KEY,
 $cardName TEXT NOT NULL,
 $cardSuit INTEGER NOT NULL
@@ -56,35 +56,46 @@ $cardFolderId INTEGER
   // and the value is the column value. The return value
   //is the id of the
   // inserted row.
-  
-  Future<int> insert(Map<String, dynamic> row) async {
+
+  Future<int> insertFolder(Map<String, dynamic> row) async {
     return await _db.insert(folderTable, row);
   }
 
-  // All of the rows are returned as a list of maps, where each map is
-  // a key-value list of columns.
-  
+  Future<int?> insertCard(Map<String, dynamic> row) async {
+    int folderId = row[cardFolderId];
+    int count = await _countCardsInFolder(folderId);
+
+    if (count >= 6) {
+      return null; // Prevent adding more than 6 cards
+    }
+
+    return await _db.insert(cardTable, row);
+  }
+
   Future<List<Map<String, dynamic>>> getFolders() async {
     return await _db.query(folderTable);
   }
 
-  // All of the methods (insert, query, update, delete) can also be done using
-  // raw SQL commands. This method uses a raw query to give the row count.
-  Future<int> queryRowCount() async {
-    final results = await _db.rawQuery('SELECT COUNT(*) FROM $table');
-    return Sqflite.firstIntValue(results) ?? 0;
+  Future<List<Map<String, dynamic>>> getCardsInFolder(int folderId) async {
+    return await _db.query(
+      cardTable,
+      where: '$cardFolderId = ?',
+      whereArgs: [folderId],
+    );
   }
 
+  Future<int> _countCardsInFolder(int folderId) async {
+    final results = await _db.rawQuery(
+      'SELECT COUNT(*) FROM $cardTable WHERE $cardFolderId = ?',
+      [folderId],
+    );
+    return Sqflite.firstIntValue(results) ?? 0;
+  }
   // We are assuming here that the id column in the map is set. The other
   // column values will be used to update the row.
-  Future<int> update(Map<String, dynamic> row) async {
-    int id = row[columnId];
-    return await _db.update(
-      table,
-      row,
-      where: '$columnId = ?',
-      whereArgs: [id],
-    );
+
+  Future<int> deleteCard(int id) async {
+    return await _db.delete(cardTable, where: '$cardId = ?', whereArgs: [id]);
   }
 
   // Deletes the row specified by the id. The number of affected rows is
@@ -93,4 +104,3 @@ $cardFolderId INTEGER
     return await _db.delete(cardTable, where: '$folderId = ?', whereArgs: [id]);
   }
 }
-  

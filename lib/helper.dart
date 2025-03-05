@@ -100,7 +100,7 @@ $cardFolderId INTEGER
 
   // Deletes the row specified by the id. The number of affected rows is
   // returned. This should be 1 as long as the row exists.
-  Future<int> delete(int id) async {
+  Future<int> deleteFolder(int id) async {
     return await _db.delete(cardTable, where: '$folderId = ?', whereArgs: [id]);
   }
 }

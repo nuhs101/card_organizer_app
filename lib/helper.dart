@@ -43,19 +43,13 @@ $folderTimestamp INTEGER NOT NULL
 CREATE TABLE $cardTable (
 $cardId INTEGER PRIMARY KEY,
 $cardName TEXT NOT NULL,
-$cardSuit INTEGER NOT NULL
-$cardImage TEXT
-$cardFolderId INTEGER
+$cardSuit INTEGER NOT NULL,
+$cardImage TEXT,
+$cardFolderId INTEGER,
+FOREIGN KEY($cardFolderId) REFERENCES $folderTable($folderId)
    )
     ''');
   }
-
-  // Helper methods
-  // Inserts a row in the database where each key in the
-  //Map is a column name
-  // and the value is the column value. The return value
-  //is the id of the
-  // inserted row.
 
   Future<int> insertFolder(Map<String, dynamic> row) async {
     return await _db.insert(folderTable, row);
@@ -91,15 +85,11 @@ $cardFolderId INTEGER
     );
     return Sqflite.firstIntValue(results) ?? 0;
   }
-  // We are assuming here that the id column in the map is set. The other
-  // column values will be used to update the row.
 
   Future<int> deleteCard(int id) async {
     return await _db.delete(cardTable, where: '$cardId = ?', whereArgs: [id]);
   }
 
-  // Deletes the row specified by the id. The number of affected rows is
-  // returned. This should be 1 as long as the row exists.
   Future<int> deleteFolder(int id) async {
     return await _db.delete(cardTable, where: '$folderId = ?', whereArgs: [id]);
   }

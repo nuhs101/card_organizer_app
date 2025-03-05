@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final dbHelper = DatabaseHelper();
+  await dbHelper.init();
   runApp(CardOrganizerApp());
 }
 
@@ -35,6 +39,8 @@ class FolderScreen extends StatelessWidget {
     '12',
     '13',
   ];
+  final DatabaseHelper dbHelper = DatabaseHelper();
+
   FolderScreen({super.key});
 
   @override
@@ -43,34 +49,51 @@ class FolderScreen extends StatelessWidget {
       appBar: AppBar(title: Text('Card Organizer')),
       body: Column(
         children: [
-          //Folders
+          // Folders List
           Expanded(
-            child: ListView.builder(
-              itemCount: folders.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ListTile(
-                    title: Text("${folders[index]} ${numbers[0]}"),
-                    trailing: IconButton(
-                      icon: Icon(Icons.arrow_forward),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    CardScreen(folderName: folders[index]),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: dbHelper.getFolders(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(child: Text('No folders available.'));
+                } else {
+                  var folders = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: folders.length,
+                    itemBuilder: (context, index) {
+                      var folder = folders[index];
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ListTile(
+                          title: Text(folder['name']),
+                          trailing: IconButton(
+                            icon: Icon(Icons.arrow_forward),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => CardScreen(
+                                        folderId: folder['id'],
+                                        folderName: folder['name'],
+                                      ),
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                );
+                        ),
+                      );
+                    },
+                  );
+                }
               },
             ),
           ),
-          // Deck blah comment
+          // Deck
           Expanded(
             child: ListView.builder(
               itemCount: 4,
@@ -104,30 +127,47 @@ class FolderScreen extends StatelessWidget {
 
 class CardScreen extends StatelessWidget {
   final String folderName;
+  final int folderId;
 
-  CardScreen({super.key, required this.folderName});
+  CardScreen({super.key, required this.folderId, required this.folderName});
 
   final List<String> cards = ['Ace', 'King', 'Queen', 'Jack', '10', '9'];
+
+  final DatabaseHelper dbHelper = DatabaseHelper();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('$folderName Cards')),
-      body: GridView.count(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8.0,
-        mainAxisSpacing: 8.0,
-        children: List.generate(cards.length, (index) {
-          return Card(
-            child: Center(
-              child: Text(
-                cards[index],
-                style: TextStyle(fontSize: 18),
-                textAlign: TextAlign.center, // Center the text
-              ),
-            ),
-          );
-        }),
+      appBar: AppBar(title: Text('Cards')),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: dbHelper.getCardsInFolder(folderId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No cards available.'));
+          } else {
+            return GridView.count(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8.0,
+              mainAxisSpacing: 8.0,
+              children: List.generate(snapshot.data!.length, (index) {
+                var card = snapshot.data![index];
+                return Card(
+                  child: Center(
+                    child: Text(
+                      card['name'],
+                      style: TextStyle(fontSize: 18),
+                      textAlign: TextAlign.center, // Center the text
+                    ),
+                  ),
+                );
+              }),
+            );
+          }
+        },
       ),
     );
   }
